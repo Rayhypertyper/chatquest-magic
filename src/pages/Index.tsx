@@ -3,9 +3,12 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { OptionButton } from "@/components/OptionButton";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StreakCounter } from "@/components/StreakCounter";
+import { TokenCounter } from "@/components/TokenCounter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
+import { generateQuestion } from "@/services/questionService";
+import { useQuery } from "@tanstack/react-query";
 
 interface Message {
   content: string;
@@ -17,47 +20,43 @@ interface Option {
   correct: boolean;
 }
 
-const MOCK_QUESTION = {
-  question: "What is the capital of France?",
-  options: [
-    { text: "London", correct: false },
-    { text: "Paris", correct: true },
-    { text: "Berlin", correct: false },
-    { text: "Madrid", correct: false },
-  ],
-};
-
 const Index = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    { content: MOCK_QUESTION.question, isAI: true },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [streak, setStreak] = useState(3);
   const [progress, setProgress] = useState(60);
   const [userInput, setUserInput] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [tokens, setTokens] = useState(100);
+
+  const { data: currentQuestion, refetch: refetchQuestion } = useQuery({
+    queryKey: ["question"],
+    queryFn: generateQuestion,
+    enabled: messages.length === 0,
+  });
+
+  if (messages.length === 0 && currentQuestion) {
+    setMessages([{ content: currentQuestion.question, isAI: true }]);
+  }
 
   const handleOptionClick = (index: number) => {
-    const option = MOCK_QUESTION.options[index];
-    setSelectedOption(index);
+    const option = currentQuestion?.options[index];
+    if (!option) return;
     
-    // Add user's answer to chat
+    setSelectedOption(index);
     setMessages((prev) => [...prev, { content: option.text, isAI: false }]);
     
-    // Add AI's response
     setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: option.correct
-            ? "Correct! Well done! 🎉"
-            : "That's not quite right. The correct answer is Paris.",
-          isAI: true,
-        },
-      ]);
+      const responseMessage = option.correct
+        ? "Correct! Well done! 🎉 +10 tokens"
+        : "That's not quite right. The correct answer was: " + 
+          currentQuestion?.options.find(opt => opt.correct)?.text;
+      
+      setMessages((prev) => [...prev, { content: responseMessage, isAI: true }]);
       
       if (option.correct) {
         setStreak((prev) => prev + 1);
         setProgress((prev) => Math.min(prev + 20, 100));
+        setTokens((prev) => prev + 10);
       } else {
         setStreak(0);
       }
@@ -71,12 +70,12 @@ const Index = () => {
     setMessages((prev) => [...prev, { content: userInput, isAI: false }]);
     setUserInput("");
 
-    // Mock AI response for custom input
     setTimeout(() => {
       setMessages((prev) => [
         ...prev,
         {
-          content: "Interesting answer! The correct answer is Paris.",
+          content: "Interesting answer! The correct answer was: " + 
+                   currentQuestion?.options.find(opt => opt.correct)?.text,
           isAI: true,
         },
       ]);
@@ -87,6 +86,9 @@ const Index = () => {
     <div className="min-h-screen max-w-lg mx-auto p-4 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <StreakCounter streak={streak} />
+        <TokenCounter tokens={tokens} />
+      </div>
+      <div className="mb-4">
         <ProgressBar current={progress} total={100} />
       </div>
 
@@ -103,9 +105,9 @@ const Index = () => {
         </div>
       </div>
 
-      {selectedOption === null && (
-        <div className="grid grid-cols-1 gap-2 mb-4">
-          {MOCK_QUESTION.options.map((option, index) => (
+      {selectedOption === null && currentQuestion && (
+        <div className="grid grid-cols-2 gap-2 mb-4 h-[40vh]">
+          {currentQuestion.options.map((option, index) => (
             <OptionButton
               key={index}
               option={option.text}
