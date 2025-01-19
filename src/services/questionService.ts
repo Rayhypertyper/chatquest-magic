@@ -1,4 +1,5 @@
 import { Groq } from "groq-sdk";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Question {
   question: string;
@@ -7,7 +8,7 @@ interface Question {
 
 export const generateQuestion = async (): Promise<Question> => {
   const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
+    apiKey: "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",
   });
 
   const prompt = `Generate a multiple choice question with 4 options. Return it in this exact JSON format:

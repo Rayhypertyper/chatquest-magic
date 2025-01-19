@@ -12,7 +12,7 @@ export const OptionButton = ({ option, onClick, disabled, isCorrect }: OptionBut
   return (
     <Button
       className={cn(
-        "w-full text-left justify-start",
+        "w-full h-full aspect-square text-left justify-start p-4",
         isCorrect === true && "bg-green-500 hover:bg-green-600",
         isCorrect === false && "bg-red-500 hover:bg-red-600"
       )}
